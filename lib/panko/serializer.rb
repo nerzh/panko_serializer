@@ -80,7 +80,10 @@ module Panko
         return if @_descriptor.nil?
 
         deleted_attr = @_descriptor.attributes.delete(method)
-        @_descriptor.method_fields << Attribute.create(method) unless deleted_attr.nil?
+        unless deleted_attr.nil?
+          @_descriptor.method_fields << Attribute.create(method)
+          @_descriptor.method_fields.uniq!
+        end
       end
 
       def has_one(name, options = {})
@@ -133,7 +136,7 @@ module Panko
 
       def add_groups_field(group_name, value)
         if value
-          @_groups[group_name.to_sym].fields << value
+          @_groups[group_name.to_sym].fields[value] = true
         end
       end
 
