@@ -29,7 +29,6 @@ struct attributes {
   VALUE values;
 
   // heuristicts
-  bool shouldReadFromHash;
   bool tryToReadFromAdditionalTypes;
 };
 
@@ -40,21 +39,18 @@ struct attributes init_context(VALUE obj) {
   attributes_ctx.types = Qnil;
   attributes_ctx.additional_types = Qnil;
 
-  attributes_ctx.shouldReadFromHash = false;
   attributes_ctx.tryToReadFromAdditionalTypes = false;
 
   volatile VALUE lazy_attributes_hash = panko_read_lazy_attributes_hash(obj);
 
   if (RB_TYPE_P(lazy_attributes_hash, T_HASH)) {
     attributes_ctx.attributes_hash = lazy_attributes_hash;
-    attributes_ctx.shouldReadFromHash = true;
   } else {
     volatile VALUE delegate_hash =
         rb_ivar_get(lazy_attributes_hash, delegate_hash_id);
 
     if (PANKO_EMPTY_HASH(delegate_hash) == false) {
       attributes_ctx.attributes_hash = delegate_hash;
-      attributes_ctx.shouldReadFromHash = true;
     }
 
     attributes_ctx.types = rb_ivar_get(lazy_attributes_hash, types_id);
@@ -73,11 +69,13 @@ VALUE read_attribute(struct attributes attributes_ctx, Attribute attribute) {
   volatile VALUE member, value;
 
   member = attribute->name_str;
-  value = Qundef;
+  value = Qnil;
 
-  if (attributes_ctx.shouldReadFromHash == true) {
+
+  if (!NIL_P(attributes_ctx.attributes_hash)) {
     volatile VALUE attribute_metadata =
         rb_hash_aref(attributes_ctx.attributes_hash, member);
+
     if (attribute_metadata != Qnil) {
       value = rb_ivar_get(attribute_metadata, value_before_type_cast_id);
 
@@ -87,12 +85,10 @@ VALUE read_attribute(struct attributes attributes_ctx, Attribute attribute) {
     }
   }
 
-  if (value == Qundef && !NIL_P(attributes_ctx.values)) {
+  if (NIL_P(value) && !NIL_P(attributes_ctx.values)) {
     value = rb_hash_aref(attributes_ctx.values, member);
-    if (NIL_P(value)) {
-      value = Qundef;
-    }
   }
+
 
   if (NIL_P(attribute->type) && !NIL_P(value)) {
     if (attributes_ctx.tryToReadFromAdditionalTypes == true) {

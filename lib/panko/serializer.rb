@@ -78,6 +78,7 @@ module Panko
 
       def method_added(method)
         return if @_descriptor.nil?
+
         deleted_attr = @_descriptor.attributes.delete(method)
         @_descriptor.method_fields << Attribute.create(method) unless deleted_attr.nil?
       end
@@ -205,14 +206,18 @@ module Panko
     attr_reader :object
 
     def serialize(object)
-      Oj.load(serialize_to_json(object))
+      serialize_with_writer(object, Panko::ObjectWriter.new).output
     end
 
     def serialize_to_json(object)
-      writer = Oj::StringWriter.new(mode: :rails)
+      serialize_with_writer(object, Oj::StringWriter.new(mode: :rails)).to_s
+    end
+
+    private
+
+    def serialize_with_writer(object, writer)
       Panko.serialize_object(object, writer, @descriptor)
-      @descriptor.set_serialization_context(nil) unless @serialization_context.is_a?(EmptySerializerContext)
-      writer.to_s
+      writer
     end
   end
 end
